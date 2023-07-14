@@ -1,7 +1,7 @@
 name: publish-contracts
 author: gabledata
 description: |
-  Pushes new or updated contracts to Gable. Pushing a contract is idempotent - if no update has been made to the contract the 
+  Publishes new or updated contracts to Gable. Publishing a contract is idempotent - if no update has been made to the contract the 
   publish will be a no-op, so it's safe to publish all contracts on every run.
 inputs:
   gable-api-endpoint:
