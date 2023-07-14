@@ -1,0 +1,55 @@
+name: register-data-assets
+author: gabledata
+description: Checks data assets defined in a product repository against any contracts defined in Gable
+inputs:
+  gable-api-endpoint:
+    description: 'Gable API Endpoint in the format https://api.<organization>.gabledata.com'
+    required: true
+  gable-api-key:
+    description: 'Gable API Key'
+    required: true
+  gable-version:
+    description: 'Gable Version'
+    required: false
+    default: 'latest'
+  data-asset-options:
+    description: |
+      Options passed in to the 'gable data-asset register' command
+    required: true
+  github-token:
+    description: 'Github token used to comment on PR'
+    default: ${{ github.token }}
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.10.11
+    - name: Install Gable
+      shell: bash
+      run: |
+        if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
+          pip install -q gable[postgres,mysql]
+        else
+          pip install -q gable[postgres,mysql]==${{ inputs.gable-version }}
+        fi
+    - name: Check out repository code
+      uses: actions/checkout@v3
+    - name: "Register Contracts"
+      env: 
+        PR_NUMBER: ${{ github.event.number }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      shell: "bash"
+      run: |
+        # Run gable data-asset register with the specified options
+        # Trim any trailing whitespace including newlines from the input options
+        export INPUT_OPTIONS="${{ inputs.data-asset-options }}"
+        export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
+        # Call gable data-asset register
+        GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
+          gable data-asset register $INPUT_OPTIONS_TRIMMED 2> error.txt || true
+branding:
+  icon: 'check-circle'
+  color: 'purple'
