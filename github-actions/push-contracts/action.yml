@@ -1,0 +1,57 @@
+name: publish-contracts
+author: gabledata
+description: |
+  Pushes new or updated contracts to Gable. Pushing a contract is idempotent - if no update has been made to the contract the 
+  publish will be a no-op, so it's safe to publish all contracts on every run.
+inputs:
+  gable-api-endpoint:
+    description: 'Gable API Endpoint in the format https://api.<organization>.gabledata.com'
+    required: true
+  gable-api-key:
+    description: 'Gable API Key'
+    required: true
+  gable-version:
+    description: 'Gable Version'
+    required: false
+    default: 'latest'
+  contract-paths:
+    description: |
+      Space delimited path(s) to the contracts to publish, with support for glob patterns. Example: 
+        "service1/**/*.yml contracts/service2/example_contract.yml"
+      This input may also be specified as a multiline string, with each line representing a path to contract(s) to publish. Example:
+        contract-paths: |
+          service1/**/*.yml
+          service2/example_contract.yml
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        # TODO: maintain compatibility list for gable versions
+        python-version: 3.10.11
+    - name: Install Gable
+      shell: bash
+      run: |
+        if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
+          pip install -q gable
+        else
+          pip install -q gable==${{ inputs.gable-version }}
+        fi
+    - name: Check out repository code
+      uses: actions/checkout@v3
+    - name: "Publish Contracts"
+      shell: "bash"
+      run: |
+        # Publish contracts using gable cli
+        # Replace newlines with spaces if input was passed in as multiline string
+        export INPUT_LIST=$(echo "${{ inputs.contract-paths }}" | tr '\n' ' ')
+        # Run gable publish with the specified contract paths
+
+        
+        GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
+          gable contract publish $INPUT_LIST
+branding:
+  icon: 'check-circle'
+  color: 'purple'
