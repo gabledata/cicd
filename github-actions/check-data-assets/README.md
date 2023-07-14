@@ -1,4 +1,4 @@
-# validate-contracts
+# check-data-assets
 
 Checks the data assets specified in the command against their contracts in Gable.
 

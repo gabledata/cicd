@@ -1,4 +1,4 @@
-# validate-contracts
+# register-data-assets
 
 Registers one or more data asset(s) in Gable. 
 
