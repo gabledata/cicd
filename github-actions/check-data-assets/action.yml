@@ -56,24 +56,22 @@ runs:
         # Trim any trailing whitespace including newlines from the input options
         export INPUT_OPTIONS="${{ inputs.data-asset-options }}"
         export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
+        export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
+        export GABLE_API_KEY="${{ inputs.gable-api-key }}"
         # Call gable data-asset check
-        GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-        gable data-asset check $INPUT_OPTIONS_TRIMMED 2> error.txt || true
+        COMMENT_MARKDOWN=$(gable data-asset check --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt || true)
+
+        # Comment on the PR if there was output
+        if [[ "$COMMENT_MARKDOWN" != "" ]]; then
+          gh pr comment $PR_NUMBER -b "$COMMENT_MARKDOWN"
+        else
+          echo No contract violations found.
+        fi
 
         # If there was error output
-        if [ -s "error.txt" ]; then
+        if [ -s "gable_error.txt" ]; then
             # Print the error output that was captured so it shows up in the workflow's output
-            cat "error.txt"
-            # Comment on the PR
-            echo "### Gable Contract Violation" > comment.txt
-            echo "A change in this PR has altered the schema of a data asset that's currently under contract. Please review the changes, and contact the owner of the data contract (TODO: insert name)" >> comment.txt
-            echo "" >> comment.txt
-            echo "\`\`\`" >> comment.txt
-            cat error.txt >> comment.txt
-            echo "" >> comment.txt
-            echo "\`\`\`" >> comment.txt
-
-            gh pr comment $PR_NUMBER -b "$(cat comment.txt)"
+            cat "gable_error.txt"
         fi
 branding:
   icon: 'check-circle'
