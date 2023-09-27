@@ -14,6 +14,10 @@ inputs:
     description: 'Gable Version'
     required: false
     default: 'latest'
+  allow-gable-pre-release:
+    description: 'Whether or not to install pre-release versions of Gable'
+    required: false
+    default: 'false'
   contract-paths:
     description: |
       Space delimited path(s) to the contracts to publish, with support for glob patterns. Example: 
@@ -34,10 +38,15 @@ runs:
     - name: Install Gable
       shell: bash
       run: |
-        if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
-          pip install -q gable
+        if [[ "${{ inputs.allow-gable-pre-release }}" == "true" ]]; then
+          PRE_RELEASE_TAG="--pre"
         else
-          pip install -q gable==${{ inputs.gable-version }}
+          PRE_RELEASE_TAG=""
+        fi
+        if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
+          pip install -q gable $PRE_RELEASE_TAG
+        else
+          pip install -q gable==${{ inputs.gable-version }} $PRE_RELEASE_TAG
         fi
     - name: Check out repository code
       uses: actions/checkout@v3
