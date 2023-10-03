@@ -46,7 +46,7 @@ runs:
         fi
     - name: Check out repository code
       uses: actions/checkout@v3
-    - name: "Register Contracts"
+    - name: "Register Data Assets"
       env: 
         PR_NUMBER: ${{ github.event.number }}
         GH_TOKEN: ${{ inputs.github-token }}
