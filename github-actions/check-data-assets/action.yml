@@ -38,6 +38,7 @@ runs:
       uses: actions/checkout@v2
       with:
         repository: 'gabledata/product'
+        ref: 'mp/demo-cli-hack-oas'
         token: '${{ inputs.product-pat}}'
         path: '${{ github.workspace }}/product/'
     - name: local gable install from product clone
