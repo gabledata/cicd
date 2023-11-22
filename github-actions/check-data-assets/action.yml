@@ -34,7 +34,7 @@ runs:
     - name: Install Gable
       shell: bash
       run: |
-        pip install "gable[all] @ git+https://${{secrets.GITHUB_TOKEN}}@github.com/gabledata/product.git@mp/demo-cli-hack-oas#subdirectory=cli/"
+        pip install "gable[all] @ git+https://${{inputs.github-token}}@github.com/gabledata/product.git@mp/demo-cli-hack-oas#subdirectory=cli/"
     - name: Check out repository code
       uses: actions/checkout@v3
     - name: "Validate Contracts"
