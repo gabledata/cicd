@@ -24,6 +24,9 @@ inputs:
     description: 'Github token used to comment on PR'
     default: ${{ github.token }}
     required: false
+  product-pat:
+    description: 'Github token used to clone the product repo for git based cli install'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -31,10 +34,16 @@ runs:
       uses: actions/setup-python@v4
       with:
         python-version: 3.10.11
-    - name: Install Gable
-      shell: bash
-      run: |
-        pip install "gable[all] @ git+https://${{inputs.github-token}}@github.com/gabledata/product.git@mp/demo-cli-hack-oas#subdirectory=cli/"
+      - name: local clone of product
+        uses: actions/checkout@v2
+        with:
+          repository: 'gabledata/product'
+          token: '${{ inputs.product-pat}}'
+          path: '${{ github.workspace }}/product/'
+      - name: local gable install from product clone
+        shell: bash
+        run: |
+          pip install product/cli/
     - name: Check out repository code
       uses: actions/checkout@v3
     - name: "Validate Contracts"
