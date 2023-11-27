@@ -60,20 +60,28 @@ runs:
         export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
         export GABLE_API_KEY="${{ inputs.gable-api-key }}"
         # Call gable data-asset check
-        COMMENT_MARKDOWN=$(gable data-asset check --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt || true)
+        if [[ "$PR_NUMBER" != "" ]]; then
+          # Don't fail the comment step if there are errors
+          COMMENT_MARKDOWN=$(gable data-asset check --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt || true)
 
-        # Comment on the PR if there was output
-        if [[ "$COMMENT_MARKDOWN" != "" ]]; then
-          gh pr comment $PR_NUMBER -b "$COMMENT_MARKDOWN"
+          # Comment on the PR if there was output
+          if [[ "$COMMENT_MARKDOWN" != "" ]]; then
+            gh pr comment $PR_NUMBER -b "$COMMENT_MARKDOWN"
+          else
+            echo No contract violations found.
+          fi
+
+          # If there was error output
+          if [ -s "gable_error.txt" ]; then
+              # Print the error output that was captured so it shows up in the workflow's output
+              cat "gable_error.txt"
+        fi
         else
-          echo No contract violations found.
+          echo No PR number found, running gable data-asset check directly
+          gable data-asset check $INPUT_OPTIONS_TRIMMED
         fi
 
-        # If there was error output
-        if [ -s "gable_error.txt" ]; then
-            # Print the error output that was captured so it shows up in the workflow's output
-            cat "gable_error.txt"
-        fi
+        
 branding:
   icon: 'check-circle'
   color: 'purple'
