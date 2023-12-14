@@ -22,7 +22,6 @@
       fi
       if [ -z "$GABLE_MR_COMMENT_MARKDOWN" ]; then
         echo No contract violations found.
-        exit 0
       fi
 
       # Post the comment to the merge request
