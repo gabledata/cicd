@@ -1,3 +1,6 @@
-# cicd
+# Gable CI/CD integrations
 
-Native CI/CD integrations that wrap Gable's [Python CLI](https://pypi.org/project/gable/) for interacting with Gable data contracts.
+[Gable](https://gable.ai) publishes CI/CD integrations to make it easy to integrate the Gable platform in your CI/CD workflows.
+
+* [GitHub Actions](github-actions/)
+* [GitLab Reusable Template](gitlab/)
