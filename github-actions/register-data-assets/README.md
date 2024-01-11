@@ -1,13 +1,24 @@
-# register-data-assets
+# Gable: Register Data Assets
 
-Registers one or more data asset(s) in Gable. 
+Checks data assets defined in a product repository against any contracts defined in Gable.
 
-This action is a thin wrapper around the `gable` [Python CLI](https://pypi.org/project/gable/)
+## Inputs
 
-```
+| parameter | description | required | default |
+| --- | --- | --- | --- |
+| gable-api-endpoint | Gable API Endpoint in the format https://api.<organization>.gabledata.com | `true` |  |
+| gable-api-key | Gable API Key | `true` |  |
+| gable-version | Gable Version | `false` | latest |
+| allow-gable-pre-release | Whether or not to install pre-release versions of Gable | `false` | false |
+| data-asset-options | Options passed in to the 'gable data-asset register' command  | `true` |  |
+| github-token | Github token used to comment on PR | `false` | ${{ github.token }} |
+
+## CLI Help (for version 0.6.0)
+
+```bash
 Usage: gable data-asset register [OPTIONS]
 
-  Registers a data with Gable
+  Registers a data asset with Gable
 
 Options:
   --source-type [postgres|mysql|avro|protobuf|json_schema]
@@ -18,7 +29,6 @@ Options:
                                   
                                   For protobuf/avro/json_schema a data asset
                                   is message/record/schema within a file.
-                                  [required]
   Database Options:               Options for registering database tables as
                                   data assets. Gable relies on having a proxy
                                   database that mirrors your  production
@@ -49,23 +59,17 @@ Options:
                                   needing to connect to the production
                                   database, the host is still needed to
                                   generate the unique resource  name for the
-                                  data asset. For example, a Postgres resource
-                                  name is 'postgres://<host>:<port>/<db>/<sche
-                                  ma>/<table>'
+                                  real database tables (data assets).
     -p, --port INTEGER            The port of the production database. Despite
                                   not needing to connect to the production
-                                  database, the port  is still needed to
+                                  database, the port is  still needed to
                                   generate the unique resource name for the
-                                  data asset. For example, a Postgres resource
-                                  name is  'postgres://<host>:<port>/<db>/<sch
-                                  ema>/<table>'
+                                  real database tables (data assets).
     --db TEXT                     The name of the production database. Despite
-                                  not needing to connect to  the production
-                                  database, the database name is still needed
+                                  not needing to connect to the production
+                                  database, the database  name is still needed
                                   to generate the unique resource name for the
-                                  data  asset. For example, a Postgres
-                                  resource name is 'postgres://<host>:<port>/<
-                                  db>/<schema>/<table>'
+                                  real database tables (data assets).
                                   
                                   Database naming convention frequently
                                   includes the environment
@@ -83,14 +87,12 @@ Options:
                                   is 'test_service_one',  you would set --db
                                   to 'prod_service_one' and --proxy-db to
                                   'test_service_one'.
-    -s, --schema TEXT             The schema of the production database where
-                                  the table(s) you want to register are
-                                  located. Despite not  needing to connect to
-                                  the production database, the schema name is
-                                  still needed to generate the unique resource
-                                  name for the data asset. For example, a
-                                  Postgres resource name is 'postgres://<host>
-                                  :<port>/<db>/<schema>/<table>'
+    -s, --schema TEXT             The schema of the production database
+                                  containing the table(s) to register. Despite
+                                  not needing to connect to  the production
+                                  database, the schema is still needed to
+                                  generate the unique resource name for the
+                                  real database tables (data assets).
                                   
                                   Database naming convention frequently
                                   includes the environment
@@ -107,9 +109,10 @@ Options:
                                   'production', but your test database is
                                   'test',  you would set --schema to
                                   'production' and --proxy-schema to 'test'.
-    -t, --table TEXT              The table to register as a data asset. If no
-                                  table is specified, all tables within the
-                                  provided schema will be registered.
+    -t, --table, --tables TEXT    A comma delimited list of the table(s) to
+                                  register. If no table(s) are specified, all
+                                  tables within the provided schema will be
+                                  registered.
                                   
                                   Table names in the proxy database instance
                                   must match the table names in the production
@@ -118,75 +121,48 @@ Options:
     -ph, --proxy-host TEXT        The host string of the database instance
                                   that serves as the proxy for the production
                                   database. This is the  database that Gable
-                                  will connect to when registering tables as
-                                  data assets instead of connecting to your
-                                  production database.  For example: in your
-                                  CI/CD workflow you can start a local Docker
-                                  container, apply the same migrations as your
-                                  production  database, and pass 'localhost'
-                                  as the proxy host value.
+                                  will connect to when registering tables in
+                                  the CI/CD workflow.
     -pp, --proxy-port INTEGER     The port of the database instance that
                                   serves as the proxy for the production
                                   database. This is the  database that Gable
-                                  will connect to when registering tables as
-                                  data assets instead of connecting to your
-                                  production database.  For example: in your
-                                  CI/CD workflow you can start a local Docker
-                                  container, apply the same migrations as your
-                                  production  database, and pass the port you
-                                  exposed on the Docker container as the proxy
-                                  host value.
+                                  will connect to when registering tables in
+                                  the CI/CD workflow.
     -pdb, --proxy-db TEXT         Only needed if the name of the database in
                                   the proxy instance is different than the
-                                  name of the production database.
+                                  name of the production database. If not
+                                  specified, the value of --db will be used to
+                                  generate the unique resource name for  the
+                                  data asset.
                                   
-                                  If not specified, the value of --db will be
-                                  used to generate the unique resource name
-                                  for the data asset. For example, if your
-                                  production database is 'prod_service_one',
-                                  but your test database is
-                                  'test_service_one', you would set --db to
-                                  'prod_service_one' and --proxy-db to
+                                  For example, if your production database is
+                                  'prod_service_one', but your test database
+                                  is 'test_service_one',  you would set --db
+                                  to 'prod_service_one' and --proxy-db to
                                   'test_service_one'.
     -ps, --proxy-schema TEXT      Only needed if the name of the schema in the
                                   proxy instance is different than the name of
-                                  the schema in the production database.
+                                  the schema in the production database. If
+                                  not specified, the value of --schema will be
+                                  used to generate the unique resource name
+                                  for  the data asset.
                                   
-                                  If not specified, the value of --schema will
-                                  be used to generate the unique resource name
-                                  for the data asset. For example, if your
-                                  production schema is 'production', but your
-                                  test database is 'test', you would set
-                                  --schema to 'production' and --proxy-schema
-                                  to 'test'.
+                                  For example, if your production schema is
+                                  'production', but your test database is
+                                  'test', you would set --schema to
+                                  'production' and --proxy-schema to 'test'.
     -pu, --proxy-user TEXT        The user that will be used to connect to the
-                                  database instance that serves as the proxy
-                                  for the production database.  This is the
-                                  database that Gable will connect to when
-                                  registering tables as data assets instead of
-                                  connecting to your  production database. For
-                                  example: in your CI/CD workflow you can
-                                  start a local Docker container, apply the
-                                  same migrations  as your production
-                                  database, and pass  the default user for the
-                                  database ('postgres' for PostgresQL, 'root'
-                                  for MySQL) as  the proxy username password.
+                                  proxy database instance that serves as the
+                                  proxy for the production  database. This is
+                                  the database that Gable will connect to when
+                                  registering tables in the CI/CD workflow.
     -ppw, --proxy-password TEXT   If specified, the password that will be used
-                                  to connect to the database instance that
-                                  serves as the proxy for  the production
+                                  to connect to the proxy database instance
+                                  that serves as the proxy for  the production
                                   database. This is the database that Gable
-                                  will connect to when registering tables as
-                                  data assets instead  of connecting to your
-                                  production database. For example: in your
-                                  CI/CD workflow you can start a local Docker
-                                  container,  apply the same migrations as
-                                  your production database, and pass  the
-                                  default user for the database ('postgres'
-                                  for  PostgresQL) as the proxy username
-                                  password, or leave it blank if the default
-                                  credentials don't have a password.
-  Protobuf & Avro options: [all_or_none]
-                                  Options for registering a Protobuf message,
+                                  will connect to when registering tables in
+                                  the CI/CD workflow.
+  Protobuf & Avro options:        Options for registering a Protobuf message,
                                   Avro record, or JSON schema object as data
                                   assets. These objects  represent data your
                                   production services produce, regardless of
@@ -198,10 +174,26 @@ Options:
                                   register from the main branch, otherwise you
                                   may end up registering records that do not
                                   end up in production.
-    --files TUPLE
+    --files TUPLE                 Space delimited path(s) to the contracts to
+                                  register, with support for glob patterns.
+  Global Options: 
+    --endpoint TEXT               Customer API endpoint for Gable, in the
+                                  format https://api.company.gable.ai/. Can
+                                  also be set with the GABLE_API_ENDPOINT
+                                  environment variable.  [required]
+    --api-key TEXT                API Key for Gable. Can also be set with the
+                                  GABLE_API_KEY environment variable.
+                                  [required]
+    --debug                       Enable debug logging
+    --trace                       Enable trace logging. This is the most
+                                  verbose logging level and should only be
+                                  used for debugging.
   --help                          Show this message and exit.
 
   Example:
 
-  gable data-asset register --source-type protobuf --files ./.serviceone/*.proto`
+  gable data-asset register --source-type postgres \     --host
+  prod.pg.db.host --port 5432 --db transit --schema public --table routes \
+  --proxy-host localhost --proxy-port 5432 --proxy-user root --proxy-password
+  password
 ```
