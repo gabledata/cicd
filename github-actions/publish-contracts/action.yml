@@ -11,7 +11,7 @@ inputs:
     description: 'Gable API Key'
     required: true
   gable-version:
-    description: 'Gable Version'
+    description: 'Gable CLI Version. See https://pypi.org/project/gable/#history for a list of available versions.'
     required: false
     default: 'latest'
   allow-gable-pre-release:
