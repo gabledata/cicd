@@ -10,7 +10,7 @@ Syntax validation of Gable data contracts.
 | gable-api-key | Gable API Key | `true` |  |
 | gable-version | Gable Version | `false` | latest |
 | allow-gable-pre-release | Whether or not to install pre-release versions of Gable | `false` | false |
-| contract-paths | Space delimited path(s) to the contracts to validate, with support for glob patterns. Example:    `"service1/**/*.yml contracts/service2/example_contract.yml"` This input may also be specified as a multiline string, with each line representing a path to contract(s) to validate. Example:   `contract-paths: |<br>     service1/**/*.yml<br>     service2/example_contract.yml` | `true` |  |
+| contract-paths | Space delimited path(s) to the contracts to validate, with support for glob patterns. Example:    `"service1/**/*.yml contracts/service2/example_contract.yml"` This input may also be specified as a multiline string, with each line representing a path to contract(s) to validate. Example:   `contract-paths: \|<br>     service1/**/*.yml<br>     service2/example_contract.yml` | `true` |  |
 
 ## CLI Help (for version 0.6.0)
 
