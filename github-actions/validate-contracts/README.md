@@ -6,7 +6,7 @@ Syntax validation of Gable data contracts.
 
 | parameter | description | required | default |
 | --- | --- | --- | --- |
-| gable-api-endpoint | Gable API Endpoint in the format https://api.<organization>.gabledata.com | `true` |  |
+| gable-api-endpoint | Gable API Endpoint in the format `https://api.<organization>.gabledata.com` | `true` |  |
 | gable-api-key | Gable API Key | `true` |  |
 | gable-version | Gable Version | `false` | latest |
 | allow-gable-pre-release | Whether or not to install pre-release versions of Gable | `false` | false |
