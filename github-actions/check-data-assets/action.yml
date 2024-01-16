@@ -1,6 +1,6 @@
 name: check-data-assets
 author: gabledata
-description: Checks data assets defined in a product repository against their data contracts defined in Gable
+description: Checks the data assets specified in the command against their contracts in Gable.
 inputs:
   gable-api-endpoint:
     description: 'Gable API Endpoint in the format https://api.<organization>.gabledata.com'
