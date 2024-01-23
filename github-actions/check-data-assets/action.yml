@@ -63,7 +63,7 @@ runs:
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$(gable data-asset check --verbose --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt)
+          COMMENT_MARKDOWN=$(gable data-asset check --trace --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
