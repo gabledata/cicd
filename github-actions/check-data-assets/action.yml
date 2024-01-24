@@ -44,6 +44,7 @@ runs:
         else
           pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
         fi
+        gable --version
     - name: Check out repository code
       uses: actions/checkout@v3
     - name: "Validate Contracts"
@@ -58,21 +59,33 @@ runs:
         export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
         export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
         export GABLE_API_KEY="${{ inputs.gable-api-key }}"
-        # Call gable data-asset check
-        COMMENT_MARKDOWN=$(gable data-asset check --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt || true)
+        # If this was run on pull_request, comment on the PR if necessary
+        if [[ "$PR_NUMBER" != "" ]]; then
+          # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
+          set +e
+          COMMENT_MARKDOWN=$(gable data-asset check --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt)
+          EXIT_CODE=$?
+          set -e
+          # Comment on the PR if there was output
+          if [[ "$COMMENT_MARKDOWN" != "" ]]; then
+            gh pr comment $PR_NUMBER -b "$COMMENT_MARKDOWN"
+          else
+            echo No contract violations found.
+          fi
 
-        # Comment on the PR if there was output
-        if [[ "$COMMENT_MARKDOWN" != "" ]]; then
-          gh pr comment $PR_NUMBER -b "$COMMENT_MARKDOWN"
+          # If there was error output
+          if [ -s "gable_error.txt" ]; then
+              # Print the error output that was captured so it shows up in the workflow's output
+              cat "gable_error.txt"
+          # Now exit with the exit code from gable data-asset check
+          exit $EXIT_CODE
+        fi
         else
-          echo No contract violations found.
+          echo No PR number found, running gable data-asset check directly
+          gable data-asset check $INPUT_OPTIONS_TRIMMED
         fi
 
-        # If there was error output
-        if [ -s "gable_error.txt" ]; then
-            # Print the error output that was captured so it shows up in the workflow's output
-            cat "gable_error.txt"
-        fi
+        
 branding:
   icon: 'check-circle'
   color: 'purple'
