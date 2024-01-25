@@ -56,7 +56,6 @@
       gable contract publish $GABLE_CONTRACT_PATHS
 
 .register-data-assets:
-  image: python:3.10
   variables:
     GABLE_VERSION:
       value: 'latest'
@@ -71,7 +70,6 @@
 
 
 .check-data-assets:
-  image: python:3.10
   variables:
     GABLE_VERSION:
       value: 'latest'
