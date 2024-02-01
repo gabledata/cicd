@@ -3,25 +3,25 @@ author: gabledata
 description: Checks data assets defined in a product repository against any contracts defined in Gable
 inputs:
   gable-api-endpoint:
-    description: 'Gable API Endpoint in the format https://api.<organization>.gabledata.com'
+    description: "Gable API Endpoint in the format https://api.<organization>.gabledata.com"
     required: true
   gable-api-key:
-    description: 'Gable API Key'
+    description: "Gable API Key"
     required: true
   gable-version:
-    description: 'Gable CLI Version. See https://pypi.org/project/gable/#history for a list of available versions.'
+    description: "Gable CLI Version. See https://pypi.org/project/gable/#history for a list of available versions."
     required: false
-    default: 'latest'
+    default: "latest"
   allow-gable-pre-release:
-    description: 'Whether or not to install pre-release versions of Gable'
+    description: "Whether or not to install pre-release versions of Gable"
     required: false
-    default: 'false'
+    default: "false"
   data-asset-options:
     description: |
       Options passed in to the 'gable data-asset register' command
     required: true
   github-token:
-    description: 'Github token used to comment on PR'
+    description: "Github token used to comment on PR"
     default: ${{ github.token }}
     required: false
 runs:
@@ -47,18 +47,41 @@ runs:
     - name: Check out repository code
       uses: actions/checkout@v3
     - name: "Register Data Assets"
-      env: 
+      env:
         PR_NUMBER: ${{ github.event.number }}
         GH_TOKEN: ${{ inputs.github-token }}
+        REPOSITORY: ${{ github.repository }}
       shell: "bash"
       run: |
-        # Run gable data-asset register with the specified options
+        # Set environment variables
+        export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
+        export GABLE_API_KEY="${{ inputs.gable-api-key }}"
+
         # Trim any trailing whitespace including newlines from the input options
         export INPUT_OPTIONS="${{ inputs.data-asset-options }}"
         export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
-        # Call gable data-asset register
-        GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-          gable data-asset register $INPUT_OPTIONS_TRIMMED 2> error.txt || true
+
+        # Call gable data-asset register and capture the output
+        set +e
+        output=$(gable data-asset register $INPUT_OPTIONS_TRIMMED 2>&1)
+        exit_code=$?
+        set -e
+
+        if [[ $exit_code -ne 0 ]]; then
+          echo "::error ::Gable data-asset registration failed:"
+          echo "$output"
+          
+          # Optionally, if you want to make a GitHub comment with the error
+          if [[ -n "$GH_TOKEN" && -n "$PR_NUMBER" ]]; then
+            comment_url=$(jq --arg body "$output" -n '{body: $body}')
+            curl -s -H "Authorization: token $GH_TOKEN" -H "Content-Type: application/json" -d "$comment_url" \
+            "https://api.github.com/repos/$REPOSITORY/issues/$PR_NUMBER/comments"
+          fi
+          
+          exit $exit_code # Exit with the original error code
+        fi
+
+        echo "Data assets successfully registered."
 branding:
-  icon: 'check-circle'
-  color: 'purple'
+  icon: "check-circle"
+  color: "purple"
