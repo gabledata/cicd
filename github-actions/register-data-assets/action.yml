@@ -50,7 +50,6 @@ runs:
       env:
         PR_NUMBER: ${{ github.event.number }}
         GH_TOKEN: ${{ inputs.github-token }}
-        REPOSITORY: ${{ github.repository }}
       shell: "bash"
       run: |
         # Set environment variables
@@ -61,27 +60,32 @@ runs:
         export INPUT_OPTIONS="${{ inputs.data-asset-options }}"
         export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
 
-        # Call gable data-asset register and capture the output
-        set +e
-        output=$(gable data-asset register $INPUT_OPTIONS_TRIMMED 2>&1)
-        exit_code=$?
-        set -e
+        # If this was run on pull_request, handle output and errors accordingly
+        if [[ "$PR_NUMBER" != "" ]]; then
+          # Don't fail the command (yet) if we get an error, but capture the exit code
+          set +e
+          OUTPUT=$(gable data-asset register $INPUT_OPTIONS_TRIMMED 2> gable_error.txt)
+          EXIT_CODE=$?
+          set -e
 
-        if [[ $exit_code -ne 0 ]]; then
-          echo "::error ::Gable data-asset registration failed:"
-          echo "$output"
-          
-          # Optionally, if you want to make a GitHub comment with the error
-          if [[ -n "$GH_TOKEN" && -n "$PR_NUMBER" ]]; then
-            comment_url=$(jq --arg body "$output" -n '{body: $body}')
-            curl -s -H "Authorization: token $GH_TOKEN" -H "Content-Type: application/json" -d "$comment_url" \
-            "https://api.github.com/repos/$REPOSITORY/issues/$PR_NUMBER/comments"
+          # If there was meaningful output, comment on the PR
+          if [[ "$OUTPUT" != "" ]]; then
+            echo "$OUTPUT" | gh pr comment $PR_NUMBER -F -
+          else
+            echo "Data assets successfully registered."
           fi
-          
-          exit $exit_code # Exit with the original error code
-        fi
 
-        echo "Data assets successfully registered."
+          # If there was error output
+          if [ -s "gable_error.txt" ]; then
+            # Print the error output that was captured so it shows up in the workflow's output
+            cat "gable_error.txt"
+          fi
+          # Now exit with the exit code from the gable data-asset register command
+          exit $EXIT_CODE
+        else
+          echo "No PR number found, running gable data-asset register directly"
+          gable data-asset register $INPUT_OPTIONS_TRIMMED
+        fi
 branding:
   icon: "check-circle"
   color: "purple"
