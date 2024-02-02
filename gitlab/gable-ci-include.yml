@@ -12,6 +12,7 @@
     else
       pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
+    gable --version
 
 .post-comment: &post-comment
     - |
