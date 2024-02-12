@@ -59,6 +59,7 @@ runs:
         # Call gable data-asset register
         GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
           gable data-asset register $INPUT_OPTIONS_TRIMMED 2> error.txt || true
+        cat error.txt
 branding:
   icon: 'check-circle'
   color: 'purple'
