@@ -57,8 +57,9 @@ runs:
         export INPUT_OPTIONS="${{ inputs.data-asset-options }}"
         export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
         # Call gable data-asset register
-        GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-          gable data-asset register $INPUT_OPTIONS_TRIMMED 2> error.txt || true
+        export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
+        export GABLE_API_KEY="${{ inputs.gable-api-key }}"
+        gable data-asset register $INPUT_OPTIONS_TRIMMED 2> error.txt || true
         cat error.txt
 branding:
   icon: 'check-circle'
