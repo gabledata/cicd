@@ -81,6 +81,8 @@
       echo "Checking data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
+      # Run with JSON output to debug
+      gable data-asset check --output json $GABLE_DATA_ASSET_CHECK_OPTIONS || true
       # Run gable data-asset check with the specified options
       export GABLE_MR_COMMENT_MARKDOWN=$(gable data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> gable_error.txt || true)
       echo "$GABLE_MR_COMMENT_MARKDOWN"
