@@ -59,11 +59,16 @@ runs:
         export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
         export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
         export GABLE_API_KEY="${{ inputs.gable-api-key }}"
+        if [[ "${{ runner.debug }}" == '1' ]]; then
+          DEBUG="--debug"
+        else
+          DEBUG=""
+        fi
         # If this was run on pull_request, comment on the PR if necessary
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$(gable data-asset check --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt)
+          COMMENT_MARKDOWN=$(gable data-asset check $DEBUG --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
@@ -82,7 +87,7 @@ runs:
         fi
         else
           echo No PR number found, running gable data-asset check directly
-          gable data-asset check $INPUT_OPTIONS_TRIMMED
+          gable data-asset check $DEBUG $INPUT_OPTIONS_TRIMMED
         fi
 
         
