@@ -73,7 +73,7 @@ runs:
           set -e
           # Comment on the PR if there was output
           if [[ "$COMMENT_MARKDOWN" != "" ]]; then
-            gh pr comment $PR_NUMBER -b "$COMMENT_MARKDOWN"
+            gh pr comment $PR_NUMBER -b "$GABLE_TEST_HEADER$COMMENT_MARKDOWN"
           else
             echo No contract violations found.
           fi
