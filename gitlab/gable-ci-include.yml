@@ -1,6 +1,23 @@
+## Variables:
+### Global:
+##   GABLE_API_ENDPOINT: The URL of the Gable API endpoint
+##   GABLE_API_KEY: The API key used to authenticate with the Gable API
+##   GABLE_VERSION: The version of the gable CLI to install. Defaults to latest.
+##   GABLE_ALLOW_PRE_RELEASE: Whether or not to install pre-release versions of Gable. Defaults to false.
+##   PYTHON_PATH: [Optional] Path to the python executable to use, which allows you to create a virtual environment and install any necessary dependencies before running gable. If not provided, the default python executable will be used.
+### Contract Validation & Publishing:
+##   GABLE_CONTRACT_PATHS: The path to the contract file(s) to validate & publish
+### Data Asset Registration:
+##   GABLE_DATA_ASSET_REGISTER_OPTIONS: Options passed in to the 'gable data-asset register' command
+### Data Asset Check:
+##   GABLE_CHECK_DATA_ASSET_OPTIONS: Options passed in to the 'gable data-asset check' command
+##   GABLE_MR_COMMENT_TOKEN: The token used to authenticate with the GitLab API to post a comment on the merge request
+
+
 .install-gable-before: &install-gable-before
   - |
     set -xv
+    echo "Using Python: ${PYTHON_PATH:-python}"
     if [ "$GABLE_ALLOW_PRE_RELEASE" = "true" ]; then
       echo "Installing pre-release versions of Gable!"
       PRE_RELEASE_TAG="--pre"
@@ -8,9 +25,9 @@
       PRE_RELEASE_TAG=""
     fi
     if [ "$GABLE_VERSION" = "latest" ]; then
-      pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
-      pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
     gable --version
 
@@ -67,7 +84,7 @@
       echo "Registering data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_REGISTER_OPTIONS"
-      gable data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
+      ${PYTHON_PATH:-python} -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
 
 
 .check-data-assets:
@@ -82,7 +99,7 @@
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
       # Run gable data-asset check with the specified options
-      export GABLE_MR_COMMENT_MARKDOWN=$(gable data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> gable_error.txt || true)
+      export GABLE_MR_COMMENT_MARKDOWN=$("${PYTHON_PATH:-python}" -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS)
       echo "$GABLE_MR_COMMENT_MARKDOWN"
     - *post-comment
     - |

@@ -23,7 +23,13 @@ inputs:
   github-token:
     description: 'Github token used to comment on PR'
     default: ${{ github.token }}
+    required: false 
+  python-path:
+    description: |
+      [Optional] Path to the python executable to use, which allows you to create a virtual environment and install any necessary 
+      dependencies before running gable. If not provided, the action will install Python on the runner.
     required: false
+    default: 'python'
 runs:
   using: "composite"
   steps:
@@ -47,6 +53,10 @@ runs:
         gable --version
     - name: Check out repository code
       uses: actions/checkout@v3
+      with:
+        # Don't clean the repository before checking out the code, we don't want to remove any virtual environments or dependencies
+        # that may have been installed
+        clean: 'false'
     - name: "Validate Contracts"
       env: 
         PR_NUMBER: ${{ github.event.number }}
@@ -54,16 +64,14 @@ runs:
       shell: "bash"
       run: |
         # Run gable data-asset check with the specified options
-        # Trim any trailing whitespace including newlines from the input options
-        export INPUT_OPTIONS="${{ inputs.data-asset-options }}"
-        export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
         export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
         export GABLE_API_KEY="${{ inputs.gable-api-key }}"
+        export PYTHON_PATH="${{ inputs.python-path }}"
         # If this was run on pull_request, comment on the PR if necessary
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$(gable data-asset check --output markdown $INPUT_OPTIONS_TRIMMED 2> gable_error.txt)
+          COMMENT_MARKDOWN=$("$PYTHON_PATH" -m gable.cli data-asset check --output markdown ${{ inputs.data-asset-options }} 2> gable_error.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
@@ -82,10 +90,9 @@ runs:
         fi
         else
           echo No PR number found, running gable data-asset check directly
-          gable data-asset check $INPUT_OPTIONS_TRIMMED
+          $PYTHON_PATH -m gable.cli data-asset check $INPUT_OPTIONS_TRIMMED
         fi
 
-        
 branding:
   icon: 'check-circle'
   color: 'purple'
