@@ -1,18 +1,18 @@
-## Variables:
-### Global:
-##   GABLE_API_ENDPOINT: The URL of the Gable API endpoint
-##   GABLE_API_KEY: The API key used to authenticate with the Gable API
-##   GABLE_VERSION: The version of the gable CLI to install. Defaults to latest.
-##   GABLE_ALLOW_PRE_RELEASE: Whether or not to install pre-release versions of Gable. Defaults to false.
-##   PYTHON_PATH: [Optional] Path to the python executable to use, which allows you to create a virtual environment and install any necessary dependencies before running gable. If not provided, the default python executable will be used.
-### Contract Validation & Publishing:
-##   GABLE_CONTRACT_PATHS: The path to the contract file(s) to validate & publish
-### Data Asset Registration:
-##   GABLE_DATA_ASSET_REGISTER_OPTIONS: Options passed in to the 'gable data-asset register' command
-### Data Asset Check:
-##   GABLE_CHECK_DATA_ASSET_OPTIONS: Options passed in to the 'gable data-asset check' command
-##   GABLE_MR_COMMENT_TOKEN: The token used to authenticate with the GitLab API to post a comment on the merge request
-
+# Global variables that can be overridden in the job level, or in the pipeline level
+variables:
+  GABLE_API_ENDPOINT: 
+    description: The URL of the Gable API endpoint
+  GABLE_API_KEY: 
+    description: The API key used to authenticate with the Gable API
+  GABLE_CLI_VERSION: 
+    description: The version of the gable CLI to install. Defaults to latest.
+    value: 'latest'
+  GABLE_ALLOW_PRE_RELEASE: 
+    description: Whether or not to install pre-release versions of Gable. Defaults to false.
+    options:
+      - true
+      - false
+    value: false
 
 .install-gable-before: &install-gable-before
   - |
@@ -24,10 +24,10 @@
     else
       PRE_RELEASE_TAG=""
     fi
-    if [ "$GABLE_VERSION" = "latest" ]; then
+    if [ "$GABLE_CLI_VERSION" = "latest" ]; then
       ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
-      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_CLI_VERSION" $PRE_RELEASE_TAG
     fi
     gable --version
 
@@ -48,8 +48,16 @@
 .validate-contracts:
   image: python:3.11
   variables:
-    GABLE_VERSION:
+    GABLE_CLI_VERSION:
       value: 'latest'
+    GABLE_CONTRACT_PATHS: 
+      description: |
+        Space delimited path(s) to the contracts to publish, with support for glob patterns. Example: 
+          "service1/**/*.yml contracts/service2/example_contract.yml"
+        This input may also be specified as a multiline string, with each line representing a path to contract(s) to publish. Example:
+          contract-paths: |
+            service1/**/*.yml
+            service2/example_contract.yml
   script:
     - *install-gable-before
     - |
@@ -59,11 +67,22 @@
       echo "Contract Path(s) $GABLE_CONTRACT_PATHS"
       gable contract validate $GABLE_CONTRACT_PATHS
 
+# Publishes new or updated contracts to Gable. Publishing a contract is idempotent - if no update has been made to the contract the 
+# publish will be a no-op, so it's safe to publish all contracts on every run.
 .publish-contracts:
   image: python:3.11
   variables:
-    GABLE_VERSION:
+    GABLE_CLI_VERSION:
       value: 'latest'
+    GABLE_CONTRACT_PATHS: 
+      description: |
+        Space delimited path(s) to the contracts to publish, with support for glob patterns. Example: 
+          "service1/**/*.yml contracts/service2/example_contract.yml"
+        This input may also be specified as a multiline string, with each line representing a path to contract(s) to publish. Example:
+          contract-paths: |
+            service1/**/*.yml
+            service2/example_contract.yml
+
   script:
     - *install-gable-before
     - |
@@ -75,8 +94,15 @@
 
 .register-data-assets:
   variables:
-    GABLE_VERSION:
+    GABLE_CLI_VERSION:
       value: 'latest'
+    GABLE_DATA_ASSET_REGISTER_OPTIONS:
+      description: "Options passed in to the 'gable data-asset register' command"
+  PYTHON_PATH: 
+    description: |
+      Path to the python executable to use, which allows you to create a virtual environment and install any necessary dependencies before running gable. 
+      If not provided, the default python executable will be used.
+    value: 'python'
   script:
     - *install-gable-before
     - |
@@ -89,8 +115,17 @@
 
 .check-data-assets:
   variables:
-    GABLE_VERSION:
+    GABLE_CLI_VERSION:
       value: 'latest'
+    GABLE_DATA_ASSET_CHECK_OPTIONS:
+      description: "Options passed in to the 'gable data-asset check' command"
+    GABLE_MR_COMMENT_TOKEN:
+      description: "The project API token with 'Reporter' role used to authenticate with the GitLab API to post a comment on the merge request"
+  PYTHON_PATH: 
+    description: |
+      Path to the python executable to use, which allows you to create a virtual environment and install any necessary dependencies before running gable. 
+      If not provided, the default python executable will be used.
+    value: 'python'
   script:
     - *install-gable-before
     - |
