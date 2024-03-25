@@ -1,22 +1,26 @@
-## Variables:
-### Global:
-##   GABLE_API_ENDPOINT: The URL of the Gable API endpoint
-##   GABLE_API_KEY: The API key used to authenticate with the Gable API
-##   GABLE_VERSION: The version of the gable CLI to install. Defaults to latest.
-##   GABLE_ALLOW_PRE_RELEASE: Whether or not to install pre-release versions of Gable. Defaults to false.
-##   PYTHON_PATH: [Optional] Path to the python executable to use, which allows you to create a virtual environment and install any necessary dependencies before running gable. If not provided, the default python executable will be used.
-### Contract Validation & Publishing:
-##   GABLE_CONTRACT_PATHS: The path to the contract file(s) to validate & publish
-### Data Asset Registration:
-##   GABLE_DATA_ASSET_REGISTER_OPTIONS: Options passed in to the 'gable data-asset register' command
-### Data Asset Check:
-##   GABLE_CHECK_DATA_ASSET_OPTIONS: Options passed in to the 'gable data-asset check' command
-##   GABLE_MR_COMMENT_TOKEN: The token used to authenticate with the GitLab API to post a comment on the merge request
-
+# Global variables that can be overridden in the job level, or in the pipeline level
+variables:
+  GABLE_API_ENDPOINT: 
+    description: The URL of the Gable API endpoint
+  GABLE_API_KEY: 
+    description: The API key used to authenticate with the Gable API
+  GABLE_VERSION: 
+    description: The version of the gable CLI to install. Defaults to latest.
+    value: 'latest'
+  GABLE_ALLOW_PRE_RELEASE: 
+    description: Whether or not to install pre-release versions of Gable. Defaults to false.
+    value: "false"
+  PYTHON_PATH: 
+    description: |
+      Can by overridden by specific data-asset jobs to set the path to the python executable to use when checking 
+      or registering data assets. This is important for Python based data assets as it allows you to create a virtual 
+      environment and install any necessary dependencies before running gable. 
+      If not provided, the default python executable will be used.
+    value: "python3"
 
 .install-gable-before: &install-gable-before
   - |
-    echo "Using Python: ${PYTHON_PATH:-python}"
+    echo "Using Python: $PYTHON_PATH"
     if [ "$GABLE_ALLOW_PRE_RELEASE" = "true" ]; then
       echo "Installing pre-release versions of Gable!"
       PRE_RELEASE_TAG="--pre"
@@ -24,21 +28,18 @@
       PRE_RELEASE_TAG=""
     fi
     if [ "$GABLE_VERSION" = "latest" ]; then
-      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+      $PYTHON_PATH -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
-      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
+      $PYTHON_PATH -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
-    ${PYTHON_PATH:-python} -m gable.cli --version
+    $PYTHON_PATH -m gable.cli --version
 
 .install-nvm-before: &install-nvm-before
   - |
-    if ! command -v nvm &> /dev/null
-    then
-        echo "nvm not found, installing..."
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    fi
+    echo "Installing nvm..."
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
     nvm install 18
     nvm use 18
 
@@ -52,11 +53,20 @@
       if [ -z "$GABLE_MR_COMMENT_MARKDOWN" ]; then
         echo No contract violations found.
       fi
+      
 .validate-contracts:
   image: python:3.11
   variables:
     GABLE_VERSION:
       value: 'latest'
+    GABLE_CONTRACT_PATHS: 
+      description: |
+        Space delimited path(s) to the contracts to publish, with support for glob patterns. Example: 
+          "service1/**/*.yml contracts/service2/example_contract.yml"
+        This input may also be specified as a multiline string, with each line representing a path to contract(s) to publish. Example:
+          contract-paths: |
+            service1/**/*.yml
+            service2/example_contract.yml
   script:
     - *install-gable-before
     - |
@@ -64,12 +74,28 @@
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Contract Path(s) $GABLE_CONTRACT_PATHS"
       gable contract validate $GABLE_CONTRACT_PATHS
-
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
+# Publishes new or updated contracts to Gable. Publishing a contract is idempotent - if no update has been made to the contract the 
+# publish will be a no-op, so it's safe to publish all contracts on every run.
 .publish-contracts:
   image: python:3.11
   variables:
     GABLE_VERSION:
       value: 'latest'
+    GABLE_CONTRACT_PATHS: 
+      description: |
+        Space delimited path(s) to the contracts to publish, with support for glob patterns. Example: 
+          "service1/**/*.yml contracts/service2/example_contract.yml"
+        This input may also be specified as a multiline string, with each line representing a path to contract(s) to publish. Example:
+          contract-paths: |
+            service1/**/*.yml
+            service2/example_contract.yml
   script:
     - *install-gable-before
     - |
@@ -77,11 +103,15 @@
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Contract Path(s) $GABLE_CONTRACT_PATHS"
       gable contract publish $GABLE_CONTRACT_PATHS
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 .register-data-assets:
   variables:
     GABLE_VERSION:
       value: 'latest'
+    GABLE_DATA_ASSET_REGISTER_OPTIONS:
+      # "Options passed in to the 'gable data-asset register' command"
   script:
     - *install-nvm-before
     - *install-gable-before
@@ -89,13 +119,22 @@
       echo "Registering data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_REGISTER_OPTIONS"
-      bash -c "${PYTHON_PATH:-python} -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
+      bash -c "$PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
+      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash. Needed to stay backwards compatible with previous hidden job
+      if [ $EXIT_CODE -eq 127 ]; then
+        $PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 
 .check-data-assets:
   variables:
     GABLE_VERSION:
       value: 'latest'
+    GABLE_DATA_ASSET_CHECK_OPTIONS:
+      # "Options passed in to the 'gable data-asset check' command"
+    GABLE_MR_COMMENT_TOKEN:
   script:
     - *install-nvm-before
     - *install-gable-before
@@ -105,10 +144,10 @@
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
       set +e
       # Run gable data-asset check with the specified options
-      GABLE_MR_COMMENT_MARKDOWN=$(bash -c "${PYTHON_PATH:-python} -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
+      GABLE_MR_COMMENT_MARKDOWN=$(bash -c "$PYTHON_PATH -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
       # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash. Needed to stay backwards compatible with previous hidden job
       if [ $EXIT_CODE -eq 127 ]; then
-        GABLE_MR_COMMENT_MARKDOWN=$(${PYTHON_PATH:-python} -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
+        GABLE_MR_COMMENT_MARKDOWN=$($PYTHON_PATH -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
       fi
       set -e
       export GABLE_MR_COMMENT_MARKDOWN=$GABLE_MR_COMMENT_MARKDOWN
@@ -121,3 +160,10 @@
       fi
       # Now exit with the exit code from gable data-asset check
       exit $EXIT_CODE
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
