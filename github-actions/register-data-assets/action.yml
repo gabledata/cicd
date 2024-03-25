@@ -24,6 +24,12 @@ inputs:
     description: 'Github token used to comment on PR'
     default: ${{ github.token }}
     required: false
+  python-path:
+    description: |
+      [Optional] Path to the python executable to use, which allows you to create a virtual environment and install any necessary 
+      dependencies before running gable. If not provided, the action will install Python on the runner.
+    required: false
+    default: 'python'
 runs:
   using: "composite"
   steps:
@@ -40,12 +46,16 @@ runs:
           PRE_RELEASE_TAG=""
         fi
         if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
-          pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
         else
-          pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
+          ${{ inputs.python-path }} -m  install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
         fi
     - name: Check out repository code
       uses: actions/checkout@v3
+      with:
+        # Don't clean the repository before checking out the code, we don't want to remove any virtual environments or dependencies
+        # that may have been installed
+        clean: 'false'
     - name: "Register Data Assets"
       env: 
         PR_NUMBER: ${{ github.event.number }}
@@ -53,12 +63,8 @@ runs:
       shell: "bash"
       run: |
         # Run gable data-asset register with the specified options
-        # Trim any trailing whitespace including newlines from the input options
-        export INPUT_OPTIONS="${{ inputs.data-asset-options }}"
-        export INPUT_OPTIONS_TRIMMED="${INPUT_OPTIONS%%+([[:space:]])}"
-        # Call gable data-asset register
         GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-          gable data-asset register $INPUT_OPTIONS_TRIMMED 2> error.txt || true
+          ${{ inputs.python-path }} -m gable.cli data-asset register ${{ inputs.data-asset-options }}
 branding:
   icon: 'check-circle'
   color: 'purple'

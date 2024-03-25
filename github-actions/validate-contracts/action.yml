@@ -48,6 +48,10 @@ runs:
         fi
     - name: Check out repository code
       uses: actions/checkout@v3
+      with:
+        # Don't clean the repository before checking out the code, we don't want to remove any virtual environments or dependencies
+        # that may have been installed
+        clean: 'false'
     - name: "Validate Contracts"
       shell: "bash"
       run: |

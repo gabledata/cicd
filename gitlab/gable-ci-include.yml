@@ -1,6 +1,22 @@
+## Variables:
+### Global:
+##   GABLE_API_ENDPOINT: The URL of the Gable API endpoint
+##   GABLE_API_KEY: The API key used to authenticate with the Gable API
+##   GABLE_VERSION: The version of the gable CLI to install. Defaults to latest.
+##   GABLE_ALLOW_PRE_RELEASE: Whether or not to install pre-release versions of Gable. Defaults to false.
+##   PYTHON_PATH: [Optional] Path to the python executable to use, which allows you to create a virtual environment and install any necessary dependencies before running gable. If not provided, the default python executable will be used.
+### Contract Validation & Publishing:
+##   GABLE_CONTRACT_PATHS: The path to the contract file(s) to validate & publish
+### Data Asset Registration:
+##   GABLE_DATA_ASSET_REGISTER_OPTIONS: Options passed in to the 'gable data-asset register' command
+### Data Asset Check:
+##   GABLE_CHECK_DATA_ASSET_OPTIONS: Options passed in to the 'gable data-asset check' command
+##   GABLE_MR_COMMENT_TOKEN: The token used to authenticate with the GitLab API to post a comment on the merge request
+
+
 .install-gable-before: &install-gable-before
   - |
-    set -xv
+    echo "Using Python: ${PYTHON_PATH:-python}"
     if [ "$GABLE_ALLOW_PRE_RELEASE" = "true" ]; then
       echo "Installing pre-release versions of Gable!"
       PRE_RELEASE_TAG="--pre"
@@ -8,26 +24,34 @@
       PRE_RELEASE_TAG=""
     fi
     if [ "$GABLE_VERSION" = "latest" ]; then
-      pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
-      pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
-    gable --version
+    ${PYTHON_PATH:-python} -m gable.cli --version
+
+.install-nvm-before: &install-nvm-before
+  - |
+    if ! command -v nvm &> /dev/null
+    then
+        echo "nvm not found, installing..."
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    fi
+    nvm install 18
+    nvm use 18
 
 .post-comment: &post-comment
     - |
-      # Assuming you're in a merge request pipeline
-      if [ -z "$CI_MERGE_REQUEST_IID" ]; then
-        echo "This job only runs in merge request pipelines."
-        exit 0
+      # Check if we're in a merge request pipeline, and there's something to comment
+      if [ -n "$CI_MERGE_REQUEST_IID" ] && [ -n "$GABLE_MR_COMMENT_MARKDOWN" ]; then
+        # Post the comment to the merge request
+        curl --request POST --header "PRIVATE-TOKEN: $GABLE_MR_COMMENT_TOKEN" --data "body=$GABLE_MR_COMMENT_MARKDOWN" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes"
       fi
       if [ -z "$GABLE_MR_COMMENT_MARKDOWN" ]; then
         echo No contract violations found.
       fi
-
-      # Post the comment to the merge request
-      curl --request POST --header "PRIVATE-TOKEN: $GABLE_MR_COMMENT_TOKEN" --data "body=$GABLE_TEST_HEADER$GABLE_MR_COMMENT_MARKDOWN" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes"
-
 .validate-contracts:
   image: python:3.11
   variables:
@@ -36,7 +60,6 @@
   script:
     - *install-gable-before
     - |
-      set -xv
       echo "Validating Contracts..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Contract Path(s) $GABLE_CONTRACT_PATHS"
@@ -50,7 +73,6 @@
   script:
     - *install-gable-before
     - |
-      set -xv
       echo "Publishing Contracts..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Contract Path(s) $GABLE_CONTRACT_PATHS"
@@ -61,13 +83,13 @@
     GABLE_VERSION:
       value: 'latest'
   script:
+    - *install-nvm-before
     - *install-gable-before
     - |
-      set -xv
       echo "Registering data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_REGISTER_OPTIONS"
-      gable data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
+      bash -c "${PYTHON_PATH:-python} -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
 
 
 .check-data-assets:
@@ -75,20 +97,27 @@
     GABLE_VERSION:
       value: 'latest'
   script:
+    - *install-nvm-before
     - *install-gable-before
     - |
-      set -xv
       echo "Checking data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
+      set +e
       # Run gable data-asset check with the specified options
-      export GABLE_MR_COMMENT_MARKDOWN=$(gable data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> gable_error.txt || true)
-      echo "$GABLE_MR_COMMENT_MARKDOWN"
+      GABLE_MR_COMMENT_MARKDOWN=$(bash -c "${PYTHON_PATH:-python} -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
+      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash. Needed to stay backwards compatible with previous hidden job
+      if [ $EXIT_CODE -eq 127 ]; then
+        GABLE_MR_COMMENT_MARKDOWN=$(${PYTHON_PATH:-python} -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
+      fi
+      set -e
+      export GABLE_MR_COMMENT_MARKDOWN=$GABLE_MR_COMMENT_MARKDOWN
+      export EXIT_CODE=$EXIT_CODE
     - *post-comment
     - |
-      # If there was error output
-      if [ -s "gable_error.txt" ]; then
-          # Print the error output that was captured so it shows up in the workflow's output
-          cat "gable_error.txt"
-          exit 1
+      if [ -s "debug_output.txt" ]; then
+        # Print the debug output that was captured so it shows up in the workflow's output
+        cat debug_output.txt
       fi
+      # Now exit with the exit code from gable data-asset check
+      exit $EXIT_CODE
