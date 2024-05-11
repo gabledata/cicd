@@ -18,6 +18,26 @@ variables:
       If not provided, the default python executable will be used.
     value: "python3"
 
+################################### util jobs ############################################
+
+# gable-mr-rules
+# Rules for jobs that should run as part of a merge request (validate-contracts, check-data-assets)
+.gable-mr-rules:
+  rules:
+    # Run on MR pipelines
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Avoid duplicate branch pipelines if an MR is already open
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    # Skip running on default branch
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
+    # Run on all other branches
+    - if: $CI_COMMIT_BRANCH
+
+# install-gable-before
+# pip installs the gable CLI based on the configured version, and optional pre-release flag
+# https://pypi.org/project/gable/
 .install-gable-before: &install-gable-before
   - |
     echo "Using Python: $PYTHON_PATH"
@@ -32,8 +52,11 @@ variables:
     else
       $PYTHON_PATH -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
+    # Print the version of gable that was installed
     $PYTHON_PATH -m gable.cli --version
 
+# install-nvm-before
+# Ensures node is available on the runner, which is required for Gable's static code analysis
 .install-nvm-before: &install-nvm-before
   - |
     echo "Installing nvm..."
@@ -43,6 +66,9 @@ variables:
     nvm install 18
     nvm use 18
 
+# post-comment
+# Job responsible for posting a comment to the merge request if there are any contract
+# violations found. This job is used by check-data-assets.
 .post-comment: &post-comment
     - |
       # Check if we're in a merge request pipeline, and there's something to comment
@@ -53,7 +79,17 @@ variables:
       if [ -z "$GABLE_MR_COMMENT_MARKDOWN" ]; then
         echo No contract violations found.
       fi
-      
+
+################################### contract jobs ############################################
+
+# validate-contracts
+#
+# Wraps the 'gable contract validate' command to ensure proposed contract changes are valid
+# before they are merged. This job should be added in any repository that contains data contract
+# files in conjunction with the publish-contracts job.
+#
+# By default, this job runs when a commit is pushed to a branch other than the default branch, 
+# and on merge request pipelines.
 .validate-contracts:
   image: python:3.11
   variables:
@@ -72,17 +108,19 @@ variables:
     - |
       echo "Validating Contracts..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
-      echo "Contract Path(s) $GABLE_CONTRACT_PATHS"
       gable contract validate $GABLE_CONTRACT_PATHS
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    - if: $CI_COMMIT_BRANCH
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: never
-# Publishes new or updated contracts to Gable. Publishing a contract is idempotent - if no update has been made to the contract the 
-# publish will be a no-op, so it's safe to publish all contracts on every run.
+    - !reference ['.gable-mr-rules', rules]
+
+
+# publish-contracts
+#
+# Wraps the 'gable contract publish' command to publish new contracts, or contract updates to Gable, when an MR is merged to
+# the default branch. Contract publishing is idempotent - if no update has been made to the contract the publish will be a 
+# no-op, so it's safe to publish all contracts in the repository on every merge to main. This job should be added in any 
+# repository that contains data contract files in conjunction with the validate-contracts job.
+#
+# By default, this job runs on commit to the default (main) branch.
 .publish-contracts:
   image: python:3.11
   variables:
@@ -101,33 +139,32 @@ variables:
     - |
       echo "Publishing Contracts..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
-      echo "Contract Path(s) $GABLE_CONTRACT_PATHS"
       gable contract publish $GABLE_CONTRACT_PATHS
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-.register-data-assets:
-  variables:
-    GABLE_VERSION:
-      value: 'latest'
-    GABLE_DATA_ASSET_REGISTER_OPTIONS:
-      # "Options passed in to the 'gable data-asset register' command"
-  script:
-    - *install-nvm-before
-    - *install-gable-before
-    - |
-      echo "Registering data assets..."
-      echo "Gable Endpoint $GABLE_API_ENDPOINT"
-      echo "Command options: $GABLE_DATA_ASSET_REGISTER_OPTIONS"
-      bash -c "$PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
-      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash. Needed to stay backwards compatible with previous hidden job
-      if [ $EXIT_CODE -eq 127 ]; then
-        $PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
-      fi
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+################################### data asset jobs ############################################
 
+# check-data-assets
+#
+# Wraps the 'gable data-asset check' command to determine if a merge request has modified a data
+# asset (database table, protobuf file, event interface, etc.) in a way that violates its data 
+# contract. 
+#
+# The job's behavior varies depending on detection of contract violations, and the individual contract
+# enforcement levels:
+# - Any data assets that do not have a data contract will be ignored.
+# - If one or more contract violations are found, and the maximum enforcement level across the contracts is
+#   ALERT, the job will post a comment to the merge request, but will not fail the pipeline.
+# - If one or more contract violations are found, and the maximum enforcement level across the contracts is
+#   BLOCK, the job will post a comment to the merge request and fail.
+# - If one or more contract violations are found, and the maximum enforcement level is NOTIFY, the job will
+#   trigger a notification, but not affect the pipeline or merge request.
+#
+# This job can be used multiple times within a repository to check different data assets.
+#
+# By default, this job runs on commit to the default (main) branch.
 .check-data-assets:
   variables:
     GABLE_VERSION:
@@ -142,16 +179,21 @@ variables:
       echo "Checking data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
+      # Temporarily disable exit on error so we can comment on the MR before failing the job (if needed)
       set +e
-      # Run gable data-asset check with the specified options
+      # Run gable data-asset check: capture stdout which contains the markdown to comment in a MR, redirect stderr to a file so it can be printed later if needed.
+      # Capture the exit code so we can fail the pipeline after commenting based on contract violations & enforcement levels
       GABLE_MR_COMMENT_MARKDOWN=$(bash -c "$PYTHON_PATH -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
-      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash. Needed to stay backwards compatible with previous hidden job
+      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash.
+      # Needed due to difference in how quotes are handled in Gitlab/YAML multiline string types.
       if [ $EXIT_CODE -eq 127 ]; then
         GABLE_MR_COMMENT_MARKDOWN=$($PYTHON_PATH -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
       fi
       set -e
+      # Export these variables so they're available in sub-processes
       export GABLE_MR_COMMENT_MARKDOWN=$GABLE_MR_COMMENT_MARKDOWN
       export EXIT_CODE=$EXIT_CODE
+    # Post a comment to the MR if there are any contract violations
     - *post-comment
     - |
       if [ -s "debug_output.txt" ]; then
@@ -161,9 +203,34 @@ variables:
       # Now exit with the exit code from gable data-asset check
       exit $EXIT_CODE
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    - if: $CI_COMMIT_BRANCH
+    - !reference ['.gable-mr-rules', rules]
+
+# register-data-assets
+#
+# Wraps the 'gable data-asset register' command to register or update data assets with Gable. 
+#
+# This job can be used multiple times within a repository to register different data assets.
+# 
+# By default, this job runs on commit to the default (main) branch.
+.register-data-assets:
+  variables:
+    GABLE_VERSION:
+      value: 'latest'
+    GABLE_DATA_ASSET_REGISTER_OPTIONS:
+      # "Options passed in to the 'gable data-asset register' command"
+  script:
+    - *install-nvm-before
+    - *install-gable-before
+    - |
+      echo "Registering data assets..."
+      echo "Gable Endpoint $GABLE_API_ENDPOINT"
+      echo "Command options: $GABLE_DATA_ASSET_REGISTER_OPTIONS"
+      bash -c "$PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
+      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash.
+      # Needed due to difference in how quotes are handled in Gitlab/YAML multiline string types.
+      if [ $EXIT_CODE -eq 127 ]; then
+        $PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
+      fi
+  rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: never
+
