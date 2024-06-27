@@ -16,6 +16,10 @@ inputs:
     description: 'Whether or not to install pre-release versions of Gable'
     required: false
     default: 'false'
+  use-test-pypi:
+    description: 'Whether or not to try installing from test PyPi'
+    required: false
+    default: 'false'
   data-asset-options:
     description: |
       Options passed in to the 'gable data-asset check' command
@@ -45,12 +49,24 @@ runs:
         else
           PRE_RELEASE_TAG=""
         fi
-        if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
-          pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+        if [[ "${{ inputs.use-test-pypi }}" == "true" ]]; then
+          TEST_PYPI="--index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/"
         else
-          pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
+          TEST_PYPI=""
         fi
-        gable --version
+        if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
+          ${{ inputs.python-path }} -m pip install -q  $TEST_PYPI  gable[postgres,mysql] $PRE_RELEASE_TAG
+        else
+          ${{ inputs.python-path }} -m pip install -q  $TEST_PYPI  gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
+        fi
+        ${{ inputs.python-path }} -m gable.cli --version
+    - name: Check out repository code
+      uses: actions/checkout@v4
+      with:
+        ref: 'main'
+        # Don't clean the repository before checking out the code, we don't want to remove any virtual environments or dependencies
+        # that may have been installed
+        clean: 'false'
     - name: Check out repository code
       uses: actions/checkout@v4
       with:
