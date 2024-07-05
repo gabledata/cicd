@@ -59,7 +59,6 @@ runs:
         clean: 'false'
     - name: "Validate Contracts"
       env: 
-        PR_NUMBER: ${{ github.event.number }}
         GH_TOKEN: ${{ inputs.github-token }}
       shell: "bash"
       run: |
@@ -72,7 +71,13 @@ runs:
           DEBUG=""
         fi
         export PYTHON_PATH="${{ inputs.python-path }}"
-        # If this was run on pull_request, comment on the PR if necessary
+
+        # Populated if we're running on: pull_request
+        PR_NUMBER=${{ github.event.number }}
+        if [[ "$PR_NUMBER" == "" ]]; then
+          # We might be running on: push, in which case try the CLI to get the PR associated with the commit
+          PR_NUMBER=$(gh pr view --json number --jq '.number' || true)
+        fi
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
