@@ -75,8 +75,10 @@ runs:
         # Populated if we're running on: pull_request
         PR_NUMBER=${{ github.event.number }}
         if [[ "$PR_NUMBER" == "" ]]; then
+          echo "No PR number found from github.event.number, trying to get it with the CLI"
           # We might be running on: push, in which case try the CLI to get the PR associated with the commit
           PR_NUMBER=$(gh pr view --json number --jq '.number' || true)
+          echo "PR number found: $PR_NUMBER"
         fi
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
