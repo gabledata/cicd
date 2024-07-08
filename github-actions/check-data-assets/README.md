@@ -15,6 +15,15 @@ This action is a thin wrapper around the `gable` [Python CLI](https://pypi.org/p
 | data-asset-options | Options passed in to the 'gable data-asset check' command  | `true` |  |
 | github-token | Github token used to comment on PR | `false` | ${{ github.token }} |
 
+## Permissions
+
+If you are running this action `on: push` instead of `on: pull_request` and want Gable to comment on the PR, you will need to configure your job with PR permissions. For example:
+
+```yaml
+permissions:
+  pull-requests: read # required for Gable to find the PR associated with the pushed commit
+```
+
 ## CLI Help (for version 0.6.0)
 
 ```bash
