@@ -64,7 +64,7 @@ runs:
       run: |
         # Run gable data-asset register with the specified options
         GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-          ${{ inputs.python-path }} -m gable.cli data-asset register ${{ inputs.data-asset-options }}
+          ${{ inputs.python-path }} -m gable.cli.cli_setup data-asset register ${{ inputs.data-asset-options }}
 branding:
   icon: 'check-circle'
   color: 'purple'

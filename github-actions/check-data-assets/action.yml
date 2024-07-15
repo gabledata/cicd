@@ -76,7 +76,7 @@ runs:
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$("$PYTHON_PATH" -m gable.cli data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
+          COMMENT_MARKDOWN=$("$PYTHON_PATH" -m gable.cli.cli_setup data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
@@ -94,7 +94,7 @@ runs:
         fi
         else
           echo No PR number found, running gable data-asset check directly
-          $PYTHON_PATH -m gable.cli data-asset check $DEBUG ${{ inputs.data-asset-options }}
+          $PYTHON_PATH -m gable.cli.cli_setup data-asset check $DEBUG ${{ inputs.data-asset-options }}
         fi
 
 branding:
