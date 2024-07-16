@@ -79,7 +79,7 @@ runs:
           VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
           export PATH="$VENV_BIN_PATH:$PATH"
           GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-          COMMENT_MARKDOWN=$(PATH=$PATH gable data-asset check data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
+          COMMENT_MARKDOWN=$(PATH=$PATH gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
