@@ -64,9 +64,8 @@ runs:
       run: |
         # Run gable data-asset register with the specified options
         VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
-        export PATH="$VENV_BIN_PATH:$PATH"
         GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-        PATH=$PATH gable data-asset register ${{ inputs.data-asset-options }}
+        PATH="$VENV_BIN_PATH:$PATH" gable data-asset register ${{ inputs.data-asset-options }}
 branding:
   icon: 'check-circle'
   color: 'purple'
