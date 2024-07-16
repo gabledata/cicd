@@ -76,7 +76,10 @@ runs:
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$("$PYTHON_PATH" -m gable.cli.cli_setup data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
+          VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
+          export PATH="$VENV_BIN_PATH:$PATH"
+          GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
+          COMMENT_MARKDOWN=$($PATH/gable data-asset check data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
@@ -94,7 +97,10 @@ runs:
         fi
         else
           echo No PR number found, running gable data-asset check directly
-          $PYTHON_PATH -m gable.cli.cli_setup data-asset check $DEBUG ${{ inputs.data-asset-options }}
+          VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
+          export PATH="$VENV_BIN_PATH:$PATH"
+          GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
+          $PATH/gable data-asset check $DEBUG ${{ inputs.data-asset-options }}
         fi
 
 branding:
