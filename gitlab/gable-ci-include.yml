@@ -42,6 +42,7 @@
     # Update PATH for the current session and run the gable command
     PATH="$VENV_BIN_PATH:$PATH" which gable
     PATH="$VENV_BIN_PATH:$PATH" gable --version
+    gable --version
 
 .install-nvm-before: &install-nvm-before
   - |
