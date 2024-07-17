@@ -35,14 +35,7 @@
       VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
     fi
     echo Using Python virtual environment to run gable: $VENV_BIN_PATH
-
-    # Debugging: List the contents of the VENV_BIN_PATH to verify gable is there
-    ls -l $VENV_BIN_PATH
-
-    # Update PATH for the current session and run the gable command
-    PATH="$VENV_BIN_PATH:$PATH" which gable
     PATH="$VENV_BIN_PATH:$PATH" gable --version
-    gable --version
 
 .install-nvm-before: &install-nvm-before
   - |
