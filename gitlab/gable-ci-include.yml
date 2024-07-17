@@ -108,7 +108,7 @@
         # If PYTHON_PATH is not provided, fallback to the current Python environment
         VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
       fi
-      PATH="$VENV_BIN_PATH:$PATH" gable data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS'
+      PATH="$VENV_BIN_PATH:$PATH" gable data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
 
 .check-data-assets:
   variables:
