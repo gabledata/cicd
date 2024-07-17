@@ -40,15 +40,16 @@ runs:
     - name: Install Gable
       shell: bash
       run: |
+        export PYTHON_PATH="${{ inputs.python-path }}"
         if [[ "${{ inputs.allow-gable-pre-release }}" == "true" ]]; then
           PRE_RELEASE_TAG="--pre"
         else
           PRE_RELEASE_TAG=""
         fi
         if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
-          pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
         else
-          pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
+          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
         fi
         gable --version
     - name: Check out repository code
@@ -72,12 +73,17 @@ runs:
           DEBUG=""
         fi
         export PYTHON_PATH="${{ inputs.python-path }}"
+        if [ -n "$PYTHON_PATH" ]; then
+          VENV_BIN_PATH="$PYTHON_PATH/bin"
+        else
+          # If PYTHON_PATH is not provided, fallback to the current Python environment
+          VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
+        fi
+        echo Using Python virtual environment to run gable: $VENV_BIN_PATH
         # If this was run on pull_request, comment on the PR if necessary
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
-          GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
           COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
           EXIT_CODE=$?
           set -e
@@ -95,9 +101,7 @@ runs:
           exit $EXIT_CODE
         fi
         else
-          echo No PR number found, running gable data-asset check directly
-          VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
-          GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
+          echo No PR number found, running gable data-asset check directly          
           PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG ${{ inputs.data-asset-options }}
         fi
 
