@@ -65,7 +65,7 @@ runs:
         # Run gable data-asset register with the specified options
         export PYTHON_PATH="${{ inputs.python-path }}"
         if [ -n "$PYTHON_PATH" ]; then
-          VENV_BIN_PATH="$PYTHON_PATH/bin"
+          VENV_BIN_PATH=$(dirname $PYTHON_PATH)
         else
           # If PYTHON_PATH is not provided, fallback to the current Python environment
           VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
