@@ -51,6 +51,12 @@ runs:
         else
           ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
         fi
+        if [ -n "$PYTHON_PATH" ]; then
+          VENV_BIN_PATH=$(dirname $PYTHON_PATH)
+        else
+          # If PYTHON_PATH is not provided, fallback to the current Python environment
+          VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
+        fi
         PATH="$VENV_BIN_PATH:$PATH" gable --version
     - name: Check out repository code
       uses: actions/checkout@v4
