@@ -68,7 +68,7 @@ runs:
         export GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}"
         export GABLE_API_KEY="${{ inputs.gable-api-key }}"
         if [[ "${{ runner.debug }}" == '1' ]]; then
-          DEBUG="--debug"
+          DEBUG="--debug --trace"
         else
           DEBUG=""
         fi
@@ -85,7 +85,7 @@ runs:
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} --trace 2> debug_output.txt)
+          COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
@@ -103,7 +103,7 @@ runs:
         fi
         else
           echo No PR number found, running gable data-asset check directly          
-          PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG ${{ inputs.data-asset-options }} --trace
+          PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG ${{ inputs.data-asset-options }}
         fi
 
 branding:
