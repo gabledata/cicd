@@ -23,6 +23,10 @@ inputs:
   github-token:
     description: 'Github token used to comment on PR'
     default: ${{ github.token }}
+    required: false
+  pr-number: 
+    description: 'Pull request number, defaults to github.event.number if the workflow was triggered by a pull_request event' 
+    default: ${{ github.event.number }} 
     required: false 
   python-path:
     description: |
@@ -59,7 +63,7 @@ runs:
         clean: 'false'
     - name: "Validate Contracts"
       env: 
-        PR_NUMBER: ${{ github.event.number }}
+        PR_NUMBER: ${{ inputs.pr-number }}
         GH_TOKEN: ${{ inputs.github-token }}
       shell: "bash"
       run: |
