@@ -80,11 +80,12 @@ runs:
           VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
         fi
         echo Using Python virtual environment to run gable: $VENV_BIN_PATH
+        echo Command options: ${{ inputs.data-asset-options }}
         # If this was run on pull_request, comment on the PR if necessary
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
+          COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} --trace 2> debug_output.txt)
           EXIT_CODE=$?
           set -e
           # Comment on the PR if there was output
@@ -102,7 +103,7 @@ runs:
         fi
         else
           echo No PR number found, running gable data-asset check directly          
-          PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG ${{ inputs.data-asset-options }}
+          PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG ${{ inputs.data-asset-options }} --trace
         fi
 
 branding:
