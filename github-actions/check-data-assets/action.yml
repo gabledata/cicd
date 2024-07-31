@@ -93,8 +93,11 @@ runs:
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
-          COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }} 2> debug_output.txt)
-          EXIT_CODE=$?
+          COMMENT_MARKDOWN=$(bash -c "PATH='$VENV_BIN_PATH:$PATH' gable data-asset check $DEBUG --output markdown ${{ inputs.data-asset-options }}" 2> debug_output.txt); export EXIT_CODE=$?
+          # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash. Needed to stay backwards compatible with previous hidden job
+          if [ $EXIT_CODE -eq 127 ]; then
+            COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
+          fi
           set -e
           # Comment on the PR if there was output
           if [[ "$COMMENT_MARKDOWN" != "" ]]; then
