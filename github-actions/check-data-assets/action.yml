@@ -87,7 +87,9 @@ runs:
         fi
         echo Using Python virtual environment to run gable: $VENV_BIN_PATH
         echo Command options: ${{ inputs.data-asset-options }}
-        # If this was run on pull_request, comment on the PR if necessary
+        echo "Using Python interpreter at: ${PYTHON_PATH:-$(which python)}"
+        echo "Current working directory: $(pwd)"        #
+        If this was run on pull_request, comment on the PR if necessary
         if [[ "$PR_NUMBER" != "" ]]; then
           # Don't fail the comment step (yet) if we get a BLOCK result, but capture the exit code
           set +e
