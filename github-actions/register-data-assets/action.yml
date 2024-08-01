@@ -46,9 +46,9 @@ runs:
           PRE_RELEASE_TAG=""
         fi
         if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
-          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG --upgrade
         else
-          ${{ inputs.python-path }} -m  install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
+          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
         fi
     - name: Check out repository code
       uses: actions/checkout@v4
@@ -63,8 +63,17 @@ runs:
       shell: "bash"
       run: |
         # Run gable data-asset register with the specified options
+        export PYTHON_PATH="${{ inputs.python-path }}"
+        if [ -n "$PYTHON_PATH" ]; then
+          VENV_BIN_PATH=$(dirname $PYTHON_PATH)
+        else
+          # If PYTHON_PATH is not provided, fallback to the current Python environment
+          VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
+        fi
+        echo Using Python virtual environment to run gable: $VENV_BIN_PATH
+        echo Command options: ${{ inputs.data-asset-options }}
         GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
-          ${{ inputs.python-path }} -m gable.cli data-asset register ${{ inputs.data-asset-options }}
+        PATH="$VENV_BIN_PATH:$PATH" gable data-asset register ${{ inputs.data-asset-options }}
 branding:
   icon: 'check-circle'
   color: 'purple'
