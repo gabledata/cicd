@@ -24,7 +24,7 @@
       PRE_RELEASE_TAG=""
     fi
     if [ "$GABLE_VERSION" = "latest" ]; then
-      ${PYTHON_PATH:-python} -m pip install --no-cache-dir -q gable[postgres,mysql] $PRE_RELEASE_TAG --upgrade
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG --upgrade
     else
       ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
@@ -112,13 +112,13 @@
     - *install-nvm-before
     - *install-gable-before
     - |
+      echo "Checking data assets..."
       if [ -n "$PYTHON_PATH" ]; then
         VENV_BIN_PATH=$(dirname $PYTHON_PATH)
       else
         # If PYTHON_PATH is not provided, fallback to the current Python environment
         VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
       fi
-      echo "Checking data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo Using Python virtual environment to run gable: $VENV_BIN_PATH
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"

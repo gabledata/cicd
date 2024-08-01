@@ -71,6 +71,7 @@ runs:
           VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
         fi
         echo Using Python virtual environment to run gable: $VENV_BIN_PATH
+        echo Command options: ${{ inputs.data-asset-options }}
         GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
         PATH="$VENV_BIN_PATH:$PATH" gable data-asset register ${{ inputs.data-asset-options }}
 branding:
