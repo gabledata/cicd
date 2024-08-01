@@ -47,8 +47,7 @@ runs:
           PRE_RELEASE_TAG=""
         fi
         if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
-          ${{ inputs.python-path }} -m pip index versions gable $PRE_RELEASE_TAG
-          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+          ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG --upgrade
         else
           ${{ inputs.python-path }} -m pip install -q gable[postgres,mysql]==${{ inputs.gable-version }} $PRE_RELEASE_TAG
         fi
