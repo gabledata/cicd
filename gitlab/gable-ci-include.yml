@@ -102,8 +102,6 @@
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo Using Python virtual environment to run gable: $VENV_BIN_PATH
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
-      echo "Using Python interpreter at: ${PYTHON_PATH:-$(which python)}"
-      echo "Current working directory: $(pwd)"
       bash -c "PATH='$VENV_BIN_PATH:$PATH' gable data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
 
 .check-data-assets:
@@ -124,8 +122,6 @@
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo Using Python virtual environment to run gable: $VENV_BIN_PATH
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
-      echo "Using Python interpreter at: ${PYTHON_PATH:-$(which python)}"
-      echo "Current working directory: $(pwd)"
       set +e
       # Run gable data-asset check with the specified options
       GABLE_MR_COMMENT_MARKDOWN=$(bash -c "PATH='$VENV_BIN_PATH:$PATH' gable data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
