@@ -24,7 +24,7 @@
       PRE_RELEASE_TAG=""
     fi
     if [ "$GABLE_VERSION" = "latest" ]; then
-      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install --no-cache-dir -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
       ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
