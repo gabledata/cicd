@@ -16,7 +16,7 @@
 
 .install-gable-before: &install-gable-before
   - |
-    echo "Using Python: ${PYTHON_PATH:-python}"
+    echo "Using Python: $PYTHON_PATH"
     if [ "$GABLE_ALLOW_PRE_RELEASE" = "true" ]; then
       echo "Installing pre-release versions of Gable!"
       PRE_RELEASE_TAG="--pre"
@@ -24,9 +24,9 @@
       PRE_RELEASE_TAG=""
     fi
     if [ "$GABLE_VERSION" = "latest" ]; then
-      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG --upgrade
+      $PYTHON_PATH -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
-      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
+      $PYTHON_PATH -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
     if [ -n "$PYTHON_PATH" ]; then
       VENV_BIN_PATH=$(dirname $PYTHON_PATH)
@@ -34,6 +34,7 @@
       # If PYTHON_PATH is not provided, fallback to the current Python environment
       VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
     fi
+    # Print the version of gable that was installed
     PATH="$VENV_BIN_PATH:$PATH" gable --version
 
 .install-nvm-before: &install-nvm-before
@@ -93,17 +94,14 @@
     - *install-gable-before
     - |
       echo "Registering data assets..."
-      if [ -n "$PYTHON_PATH" ]; then
-        VENV_BIN_PATH=$(dirname $PYTHON_PATH)
-      else
-        # If PYTHON_PATH is not provided, fallback to the current Python environment
-        VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
-      fi
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
-      echo Using Python virtual environment to run gable: $VENV_BIN_PATH
-      echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
+      echo "Command options: $GABLE_DATA_ASSET_REGISTER_OPTIONS"
       bash -c "PATH='$VENV_BIN_PATH:$PATH' gable data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
-
+      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash.
+      # Needed due to difference in how quotes are handled in Gitlab/YAML multiline string types.
+      if [ $EXIT_CODE -eq 127 ]; then
+        PATH="$VENV_BIN_PATH:$PATH" gable data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
+      fi
 .check-data-assets:
   variables:
     GABLE_VERSION:
@@ -120,16 +118,19 @@
         VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
       fi
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
-      echo Using Python virtual environment to run gable: $VENV_BIN_PATH
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
+      # Temporarily disable exit on error so we can comment on the MR before failing the job (if needed)
       set +e
-      # Run gable data-asset check with the specified options
+      # Run gable data-asset check: capture stdout which contains the markdown to comment in a MR, redirect stderr to a file so it can be printed later if needed.
+      # Capture the exit code so we can fail the pipeline after commenting based on contract violations & enforcement levels
       GABLE_MR_COMMENT_MARKDOWN=$(bash -c "PATH='$VENV_BIN_PATH:$PATH' gable data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
-      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash. Needed to stay backwards compatible with previous hidden job
+      # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash.
+      # Needed due to difference in how quotes are handled in Gitlab/YAML multiline string types.
       if [ $EXIT_CODE -eq 127 ]; then
         GABLE_MR_COMMENT_MARKDOWN=$(PATH="$VENV_BIN_PATH:$PATH" gable data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
       fi
       set -e
+      # Export these variables so they're available in sub-processes
       export GABLE_MR_COMMENT_MARKDOWN=$GABLE_MR_COMMENT_MARKDOWN
       export EXIT_CODE=$EXIT_CODE
     - *post-comment
