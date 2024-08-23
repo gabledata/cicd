@@ -16,7 +16,7 @@
 
 .install-gable-before: &install-gable-before
   - |
-    echo "Using Python: $PYTHON_PATH"
+    echo "Using Python: ${PYTHON_PATH:-python}"
     if [ "$GABLE_ALLOW_PRE_RELEASE" = "true" ]; then
       echo "Installing pre-release versions of Gable!"
       PRE_RELEASE_TAG="--pre"
@@ -24,12 +24,12 @@
       PRE_RELEASE_TAG=""
     fi
     if [ "$GABLE_VERSION" = "latest" ]; then
-      $PYTHON_PATH -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
-      $PYTHON_PATH -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
     # Print the version of gable that was installed
-    $PYTHON_PATH -m gable.cli --version
+    ${PYTHON_PATH:-python} -m gable.cli --version
 
 .install-nvm-before: &install-nvm-before
   - |
@@ -90,11 +90,11 @@
       echo "Registering data assets..."
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_REGISTER_OPTIONS"
-      bash -c "$PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
+      bash -c "${PYTHON_PATH:-python} -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS"
       # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash.
       # Needed due to difference in how quotes are handled in Gitlab/YAML multiline string types.
       if [ $EXIT_CODE -eq 127 ]; then
-        $PYTHON_PATH -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
+        ${PYTHON_PATH:-python} -m gable.cli data-asset register $GABLE_DATA_ASSET_REGISTER_OPTIONS
       fi
 .check-data-assets:
   variables:
@@ -111,11 +111,11 @@
       set +e
       # Run gable data-asset check: capture stdout which contains the markdown to comment in a MR, redirect stderr to a file so it can be printed later if needed.
       # Capture the exit code so we can fail the pipeline after commenting based on contract violations & enforcement levels
-      GABLE_MR_COMMENT_MARKDOWN=$(bash -c "$PYTHON_PATH -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
+      GABLE_MR_COMMENT_MARKDOWN=$(bash -c "${PYTHON_PATH:-python} -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS" 2> debug_output.txt); export EXIT_CODE=$?
       # Check if exit code is 127 (command not found) and if so, run again without wrapping in bash.
       # Needed due to difference in how quotes are handled in Gitlab/YAML multiline string types.
       if [ $EXIT_CODE -eq 127 ]; then
-        GABLE_MR_COMMENT_MARKDOWN=$($PYTHON_PATH -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
+        GABLE_MR_COMMENT_MARKDOWN=$(${PYTHON_PATH:-python} -m gable.cli data-asset check --output markdown $GABLE_DATA_ASSET_CHECK_OPTIONS 2> debug_output.txt); export EXIT_CODE=$?
       fi
       set -e
       # Export these variables so they're available in sub-processes
