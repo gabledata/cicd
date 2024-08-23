@@ -16,24 +16,23 @@
 
 .install-gable-before: &install-gable-before
   - |
-    echo "Using Python: $PYTHON_PATH"
+    echo "Using Python: ${PYTHON_PATH:-python}"
+    # Check if pre-release versions of Gable should be installed
     if [ "$GABLE_ALLOW_PRE_RELEASE" = "true" ]; then
       echo "Installing pre-release versions of Gable!"
       PRE_RELEASE_TAG="--pre"
     else
       PRE_RELEASE_TAG=""
     fi
+    # Install Gable with the specified version or the latest version
     if [ "$GABLE_VERSION" = "latest" ]; then
-      $PYTHON_PATH -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql] $PRE_RELEASE_TAG
     else
-      $PYTHON_PATH -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
+      ${PYTHON_PATH:-python} -m pip install -q gable[postgres,mysql]=="$GABLE_VERSION" $PRE_RELEASE_TAG
     fi
-    if [ -n "$PYTHON_PATH" ]; then
-      VENV_BIN_PATH=$(dirname $PYTHON_PATH)
-    else
-      # If PYTHON_PATH is not provided, fallback to the current Python environment
-      VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
-    fi
+    # Set the virtual environment bin path
+    VENV_BIN_PATH=$(dirname ${PYTHON_PATH:-python})
+
     # Print the version of gable that was installed
     PATH="$VENV_BIN_PATH:$PATH" gable --version
 
@@ -111,12 +110,6 @@
     - *install-gable-before
     - |
       echo "Checking data assets..."
-      if [ -n "$PYTHON_PATH" ]; then
-        VENV_BIN_PATH=$(dirname $PYTHON_PATH)
-      else
-        # If PYTHON_PATH is not provided, fallback to the current Python environment
-        VENV_BIN_PATH=$(python -c "import sys; print(sys.prefix + '/bin')")
-      fi
       echo "Gable Endpoint $GABLE_API_ENDPOINT"
       echo "Command options: $GABLE_DATA_ASSET_CHECK_OPTIONS"
       # Temporarily disable exit on error so we can comment on the MR before failing the job (if needed)
