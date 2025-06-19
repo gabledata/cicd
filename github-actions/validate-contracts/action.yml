@@ -42,9 +42,9 @@ runs:
           PRE_RELEASE_TAG=""
         fi
         if [[ "${{ inputs.gable-version }}" == "latest" ]]; then
-          pip install -q gable $PRE_RELEASE_TAG
+          pip install -q gable 'GitPython==3.1.43' $PRE_RELEASE_TAG
         else
-          pip install -q gable==${{ inputs.gable-version }} $PRE_RELEASE_TAG
+          pip install -q gable==${{ inputs.gable-version }} 'GitPython==3.1.43' $PRE_RELEASE_TAG
         fi
     - name: Check out repository code
       uses: actions/checkout@v4
@@ -60,7 +60,8 @@ runs:
         export INPUT_LIST=$(echo "${{ inputs.contract-paths }}" | tr '\n' ' ')
         # Run gable validate with the specified contract paths
         
-        
+        which gable
+        pip list 
         GABLE_API_ENDPOINT="${{ inputs.gable-api-endpoint }}" GABLE_API_KEY="${{ inputs.gable-api-key }}" \
           gable contract validate $INPUT_LIST
 branding:
